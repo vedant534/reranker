@@ -1,0 +1,63 @@
+{
+  "dataset": {
+    "train": {
+      "rows": 100787,
+      "queries": 5000
+    },
+    "validation": {
+      "rows": 20207,
+      "queries": 1000
+    },
+    "test": {
+      "rows": 20013,
+      "queries": 1000
+    }
+  },
+  "label_gains": {
+    "I": 0.0,
+    "C": 0.01,
+    "S": 0.1,
+    "E": 1.0
+  },
+  "selected_lexical_word_weight": 0.25,
+  "selected_lexical_validation_ndcg_at_10": 0.6920101621150759,
+  "validation_weight_scores": {
+    "0.25": 0.6920101621150759,
+    "0.5": 0.690066048488568,
+    "0.75": 0.6833577859575446
+  },
+  "low_overlap_validation_q25_mean_coverage": 0.27460937947034836,
+  "best_iteration": 89,
+  "models": {
+    "word_tfidf": {
+      "ndcg_at_10": 0.6668181415199433,
+      "exact_mrr_at_10": 0.7139031746031747,
+      "es_recall_at_5": 0.3087404672721425,
+      "ci_exposure_at_5": 0.179,
+      "n_queries": 1000,
+      "es_recall_queries": 1000,
+      "p50_ms": 3.1950210000015744,
+      "p95_ms": 5.9308145999983335
+    },
+    "combined_lexical": {
+      "ndcg_at_10": 0.6888773273141519,
+      "exact_mrr_at_10": 0.7408865079365079,
+      "es_recall_at_5": 0.31172648745674086,
+      "ci_exposure_at_5": 0.1732,
+      "n_queries": 1000,
+      "es_recall_queries": 1000,
+      "p50_ms": 3.216833000001529,
+      "p95_ms": 5.958412800002932
+    },
+    "lightgbm_ranker": {
+      "ndcg_at_10": 0.721906360649663,
+      "exact_mrr_at_10": 0.7914218253968254,
+      "es_recall_at_5": 0.3159449673044017,
+      "ci_exposure_at_5": 0.162,
+      "n_queries": 1000,
+      "es_recall_queries": 1000,
+      "p50_ms": 3.4781459999990716,
+      "p95_ms": 6.237047900001968
+    }
+  }
+}
