@@ -21,6 +21,12 @@ FEATURE_NAMES = [
     "missing_brand",
     "missing_color",
 ]
+TFIDF_FEATURE_NAMES = ["word_tfidf_cosine", "char_tfidf_cosine"]
+HANDCRAFTED_FEATURE_NAMES = FEATURE_NAMES[2:]
+FEATURE_SETS = {
+    "tfidf_2": TFIDF_FEATURE_NAMES,
+    "all_13": FEATURE_NAMES,
+}
 
 
 def normalize_text(value):
@@ -77,50 +83,77 @@ def _rowwise_tfidf_cosine(vectorizer, queries, titles):
     return np.asarray(query_matrix.multiply(title_matrix).sum(axis=1)).ravel().astype(np.float32)
 
 
-def transform_features(frame, bundle):
+def transform_features(frame, bundle, feature_names=None):
+    requested = list(FEATURE_NAMES if feature_names is None else feature_names)
+    unknown = set(requested) - set(FEATURE_NAMES)
+    if unknown:
+        raise ValueError(f"Unknown feature name(s): {sorted(unknown)}")
+    if not requested:
+        raise ValueError("At least one feature must be requested")
+
     queries = frame["query"].fillna("").astype(str)
     titles = frame["product_title"].fillna("").astype(str)
-    brands = frame.get("product_brand", pd.Series("", index=frame.index)).fillna("").astype(str)
-    colors = frame.get("product_color", pd.Series("", index=frame.index)).fillna("").astype(str)
-
-    word_similarity = _rowwise_tfidf_cosine(bundle["word_vectorizer"], queries, titles)
-    char_similarity = _rowwise_tfidf_cosine(bundle["char_vectorizer"], queries, titles)
-
-    rows = []
-    for query, title, brand, color in zip(queries, titles, brands, colors):
-        query_tokens = tokenize(query)
-        title_tokens = tokenize(title)
-        query_set = set(query_tokens)
-        title_set = set(title_tokens)
-        union = query_set | title_set
-        query_model_tokens = {token for token in query_set if any(char.isdigit() for char in token)}
-        query_norm = " ".join(query_tokens)
-        title_norm = " ".join(title_tokens)
-        brand_norm = normalize_text(brand)
-        color_norm = normalize_text(color)
-        rows.append(
-            (
-                len(query_set & title_set) / len(query_set) if query_set else 0.0,
-                len(query_set & title_set) / len(union) if union else 0.0,
-                float(bool(query_norm) and f" {query_norm} " in f" {title_norm} "),
-                float(bool(brand_norm) and f" {brand_norm} " in f" {query_norm} "),
-                float(bool(color_norm) and f" {color_norm} " in f" {query_norm} "),
-                (
-                    len(query_model_tokens & title_set) / len(query_model_tokens)
-                    if query_model_tokens
-                    else 0.0
-                ),
-                len(query_tokens),
-                len(title_tokens),
-                len(title_tokens) / max(len(query_tokens), 1),
-                float(not brand.strip()),
-                float(not color.strip()),
-            )
+    values = {}
+    if "word_tfidf_cosine" in requested:
+        values["word_tfidf_cosine"] = _rowwise_tfidf_cosine(
+            bundle["word_vectorizer"], queries, titles
+        )
+    if "char_tfidf_cosine" in requested:
+        values["char_tfidf_cosine"] = _rowwise_tfidf_cosine(
+            bundle["char_vectorizer"], queries, titles
         )
 
-    handcrafted = np.asarray(rows, dtype=np.float32)
-    matrix = np.column_stack([word_similarity, char_similarity, handcrafted])
-    return pd.DataFrame(matrix, columns=FEATURE_NAMES, index=frame.index)
+    if set(requested) & set(HANDCRAFTED_FEATURE_NAMES):
+        brands = (
+            frame.get("product_brand", pd.Series("", index=frame.index))
+            .fillna("")
+            .astype(str)
+        )
+        colors = (
+            frame.get("product_color", pd.Series("", index=frame.index))
+            .fillna("")
+            .astype(str)
+        )
+        rows = []
+        for query, title, brand, color in zip(queries, titles, brands, colors):
+            query_tokens = tokenize(query)
+            title_tokens = tokenize(title)
+            query_set = set(query_tokens)
+            title_set = set(title_tokens)
+            union = query_set | title_set
+            query_model_tokens = {
+                token for token in query_set if any(char.isdigit() for char in token)
+            }
+            query_norm = " ".join(query_tokens)
+            title_norm = " ".join(title_tokens)
+            brand_norm = normalize_text(brand)
+            color_norm = normalize_text(color)
+            rows.append(
+                (
+                    len(query_set & title_set) / len(query_set) if query_set else 0.0,
+                    len(query_set & title_set) / len(union) if union else 0.0,
+                    float(bool(query_norm) and f" {query_norm} " in f" {title_norm} "),
+                    float(bool(brand_norm) and f" {brand_norm} " in f" {query_norm} "),
+                    float(bool(color_norm) and f" {color_norm} " in f" {query_norm} "),
+                    (
+                        len(query_model_tokens & title_set) / len(query_model_tokens)
+                        if query_model_tokens
+                        else 0.0
+                    ),
+                    len(query_tokens),
+                    len(title_tokens),
+                    len(title_tokens) / max(len(query_tokens), 1),
+                    float(not brand.strip()),
+                    float(not color.strip()),
+                )
+            )
+        handcrafted = np.asarray(rows, dtype=np.float32).reshape(
+            len(rows), len(HANDCRAFTED_FEATURE_NAMES)
+        )
+        for index, name in enumerate(HANDCRAFTED_FEATURE_NAMES):
+            values[name] = handcrafted[:, index]
+
+    return pd.DataFrame({name: values[name] for name in requested}, index=frame.index)
 
 
 def combined_lexical_score(features, word_weight):
@@ -128,4 +161,3 @@ def combined_lexical_score(features, word_weight):
         float(word_weight) * features["word_tfidf_cosine"].to_numpy()
         + (1.0 - float(word_weight)) * features["char_tfidf_cosine"].to_numpy()
     )
-

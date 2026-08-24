@@ -1,0 +1,4 @@
+candidate_name,feature_set,truncation_level,validation_ndcg_at_10,best_iteration
+tfidf_2_trunc13,tfidf_2,13,0.6900212736859204,25
+all_13_trunc13,all_13,13,0.7180114961338864,108
+all_13_trunc30,all_13,30,0.7153814011261452,89

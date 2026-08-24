@@ -1,7 +1,10 @@
 import numpy as np
 
 
-LABEL_GAINS = {"I": 0.0, "C": 0.01, "S": 0.1, "E": 1.0}
+LABEL_ORDER = ("I", "C", "S", "E")
+LABEL_GAINS = dict(zip(LABEL_ORDER, (0.0, 0.01, 0.1, 1.0)))
+LABEL_LEVELS = {label: index for index, label in enumerate(LABEL_ORDER)}
+LIGHTGBM_LABEL_GAINS = [LABEL_GAINS[label] for label in LABEL_ORDER]
 
 
 def ndcg_at_k(labels, k=10):
@@ -29,22 +32,52 @@ def exact_substitute_recall_at_k(labels, k=5):
     return sum(label in {"E", "S"} for label in labels[:k]) / total
 
 
-def bad_exposure_at_k(labels, k=5):
+def label_exposure_at_k(labels, label, k=5):
     top = labels[:k]
     if not top:
         return 0.0
-    return sum(label in {"C", "I"} for label in top) / len(top)
+    return sum(value == label for value in top) / len(top)
+
+
+def complement_exposure_at_k(labels, k=5):
+    return label_exposure_at_k(labels, "C", k)
+
+
+def irrelevant_exposure_at_k(labels, k=5):
+    return label_exposure_at_k(labels, "I", k)
+
+
+def bad_exposure_at_k(labels, k=5):
+    return complement_exposure_at_k(labels, k) + irrelevant_exposure_at_k(labels, k)
+
+
+def ranking_metrics(labels):
+    return {
+        "ndcg_at_10": ndcg_at_k(labels, 10),
+        "exact_mrr_at_10": exact_mrr_at_k(labels, 10),
+        "es_recall_at_5": exact_substitute_recall_at_k(labels, 5),
+        "complement_exposure_at_5": complement_exposure_at_k(labels, 5),
+        "irrelevant_exposure_at_5": irrelevant_exposure_at_k(labels, 5),
+    }
 
 
 def evaluate_ranking(frame, score_column):
-    values = {"ndcg_at_10": [], "exact_mrr_at_10": [], "es_recall_at_5": [], "ci_exposure_at_5": []}
+    values = {
+        "ndcg_at_10": [],
+        "exact_mrr_at_10": [],
+        "es_recall_at_5": [],
+        "complement_exposure_at_5": [],
+        "irrelevant_exposure_at_5": [],
+    }
     for _, group in frame.groupby("query_id", sort=False):
-        ranked = group.sort_values([score_column, "product_id"], ascending=[False, True], kind="mergesort")
+        ranked = group.sort_values(
+            [score_column, "product_id"],
+            ascending=[False, True],
+            kind="mergesort",
+        )
         labels = ranked["esci_label"].tolist()
-        values["ndcg_at_10"].append(ndcg_at_k(labels, 10))
-        values["exact_mrr_at_10"].append(exact_mrr_at_k(labels, 10))
-        values["es_recall_at_5"].append(exact_substitute_recall_at_k(labels, 5))
-        values["ci_exposure_at_5"].append(bad_exposure_at_k(labels, 5))
+        for name, value in ranking_metrics(labels).items():
+            values[name].append(value)
     result = {}
     for name, metric_values in values.items():
         array = np.asarray(metric_values, dtype=float)
@@ -52,4 +85,3 @@ def evaluate_ranking(frame, score_column):
     result["n_queries"] = int(frame["query_id"].nunique())
     result["es_recall_queries"] = int(np.sum(~np.isnan(values["es_recall_at_5"])))
     return result
-

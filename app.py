@@ -1,4 +1,5 @@
 import argparse
+from pathlib import Path
 
 import joblib
 import pandas as pd
@@ -18,25 +19,43 @@ def parse_config_path():
 @st.cache_resource
 def load_artifacts(config_path):
     config = load_config(config_path)
-    artifact_dir = config["paths"]["artifact_dir"]
-    bundle = joblib.load(f"{artifact_dir}/feature_bundle.joblib")
-    ranker = joblib.load(f"{artifact_dir}/ranker.joblib")
+    artifact_dir = Path(config["paths"]["artifact_dir"])
+    bundle = joblib.load(artifact_dir / "feature_bundle.joblib")
+    ranker = joblib.load(artifact_dir / "ranker.joblib")
     return config, bundle, ranker
 
 
 @st.cache_data
 def load_test_predictions(artifact_dir):
-    return pd.read_parquet(f"{artifact_dir}/test_predictions.parquet")
+    return pd.read_parquet(Path(artifact_dir) / "final_test_predictions.parquet")
 
 
-st.set_page_config(page_title="ESCI reranking demo", layout="wide")
-st.title("Intent-aware ESCI candidate reranking demo")
+st.set_page_config(page_title="Graded-relevance reranking demo", layout="wide")
+st.title("Graded-relevance e-commerce search reranker")
 st.caption(
     "This demo reranks candidate products already supplied by ESCI. "
     "It is not a product retrieval or general search engine."
 )
 
 config_path = parse_config_path()
+preflight_config = load_config(config_path)
+preflight_artifact_dir = Path(preflight_config["paths"]["artifact_dir"])
+required_artifacts = [
+    preflight_artifact_dir / "feature_bundle.joblib",
+    preflight_artifact_dir / "ranker.joblib",
+    preflight_artifact_dir / "final_test_predictions.parquet",
+]
+missing_artifacts = [path.name for path in required_artifacts if not path.exists()]
+if missing_artifacts:
+    st.error(
+        "The demo artifacts are not ready yet. Missing: "
+        + ", ".join(missing_artifacts)
+        + "."
+    )
+    st.write("Run the pipeline once, then restart this app:")
+    st.code(f"python run_pipeline.py --config {config_path}")
+    st.stop()
+
 config, feature_bundle, ranker = load_artifacts(config_path)
 test_data = load_test_predictions(config["paths"]["artifact_dir"])
 queries = test_data[["query_id", "query"]].drop_duplicates().sort_values("query_id")
@@ -73,4 +92,3 @@ with right:
         hide_index=True,
         use_container_width=True,
     )
-

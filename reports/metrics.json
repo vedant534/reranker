@@ -1,4 +1,10 @@
 {
+  "project_title": "Graded-Relevance E-commerce Search Reranker",
+  "seeds": {
+    "sampling": 42,
+    "model": 42,
+    "bootstrap": 2029
+  },
   "dataset": {
     "train": {
       "rows": 100787,
@@ -8,10 +14,24 @@
       "rows": 20207,
       "queries": 1000
     },
-    "test": {
+    "legacy_test": {
       "rows": 20013,
       "queries": 1000
+    },
+    "final_test": {
+      "rows": 161688,
+      "queries": 7956
     }
+  },
+  "split_protocol": {
+    "official_train_queries": 20888,
+    "official_test_queries": 8956,
+    "legacy_test_queries_excluded": 1000,
+    "fresh_final_queries": 7956
+  },
+  "dataset_files_bytes": {
+    "shopping_queries_dataset_examples.parquet": 51286808,
+    "shopping_queries_dataset_products.parquet": 1108857465
   },
   "label_gains": {
     "I": 0.0,
@@ -26,38 +46,117 @@
     "0.5": 0.690066048488568,
     "0.75": 0.6833577859575446
   },
+  "selected_ranker": {
+    "candidate_name": "all_13_trunc13",
+    "feature_names": [
+      "word_tfidf_cosine",
+      "char_tfidf_cosine",
+      "query_token_coverage",
+      "token_jaccard",
+      "exact_query_in_title",
+      "brand_in_query",
+      "color_in_query",
+      "numeric_model_token_overlap",
+      "query_length",
+      "title_length",
+      "length_ratio",
+      "missing_brand",
+      "missing_color"
+    ],
+    "truncation_level": 13,
+    "validation_ndcg_at_10": 0.7180114961338864,
+    "best_iteration": 108
+  },
   "low_overlap_validation_q25_mean_coverage": 0.27460937947034836,
-  "best_iteration": 89,
   "models": {
     "word_tfidf": {
-      "ndcg_at_10": 0.6668181415199433,
-      "exact_mrr_at_10": 0.7139031746031747,
-      "es_recall_at_5": 0.3087404672721425,
-      "ci_exposure_at_5": 0.179,
-      "n_queries": 1000,
-      "es_recall_queries": 1000,
-      "p50_ms": 3.1950210000015744,
-      "p95_ms": 5.9308145999983335
+      "ndcg_at_10": 0.6664962351329096,
+      "exact_mrr_at_10": 0.7117187687040627,
+      "es_recall_at_5": 0.306530598955582,
+      "complement_exposure_at_5": 0.04768728004022122,
+      "irrelevant_exposure_at_5": 0.1238562091503268,
+      "n_queries": 7956,
+      "es_recall_queries": 7956,
+      "p50_ms": 1.610937500000631,
+      "p95_ms": 2.1589789999989506,
+      "n_timed_queries": 7956
     },
     "combined_lexical": {
-      "ndcg_at_10": 0.6888773273141519,
-      "exact_mrr_at_10": 0.7408865079365079,
-      "es_recall_at_5": 0.31172648745674086,
-      "ci_exposure_at_5": 0.1732,
-      "n_queries": 1000,
-      "es_recall_queries": 1000,
-      "p50_ms": 3.216833000001529,
-      "p95_ms": 5.958412800002932
+      "ndcg_at_10": 0.6913854731983733,
+      "exact_mrr_at_10": 0.7403072055032839,
+      "es_recall_at_5": 0.31328136640186516,
+      "complement_exposure_at_5": 0.04856711915535445,
+      "irrelevant_exposure_at_5": 0.11354952237305178,
+      "n_queries": 7956,
+      "es_recall_queries": 7956,
+      "p50_ms": 3.395416499998305,
+      "p95_ms": 6.213167250008311,
+      "n_timed_queries": 7956
     },
     "lightgbm_ranker": {
-      "ndcg_at_10": 0.721906360649663,
-      "exact_mrr_at_10": 0.7914218253968254,
-      "es_recall_at_5": 0.3159449673044017,
-      "ci_exposure_at_5": 0.162,
-      "n_queries": 1000,
-      "es_recall_queries": 1000,
-      "p50_ms": 3.4781459999990716,
-      "p95_ms": 6.237047900001968
+      "ndcg_at_10": 0.7157582946170216,
+      "exact_mrr_at_10": 0.7762670381542931,
+      "es_recall_at_5": 0.3144426360656008,
+      "complement_exposure_at_5": 0.04708396178984415,
+      "irrelevant_exposure_at_5": 0.11229260935143288,
+      "n_queries": 7956,
+      "es_recall_queries": 7956,
+      "p50_ms": 4.149958500001105,
+      "p95_ms": 7.4119997500048385,
+      "n_timed_queries": 7956
     }
+  },
+  "bootstrap_comparison": [
+    {
+      "metric": "ndcg_at_10",
+      "baseline_model": "combined_lexical",
+      "challenger_model": "lightgbm_ranker",
+      "observed_difference": 0.024372821418648397,
+      "ci_lower_95": 0.021319280107726837,
+      "ci_upper_95": 0.027515435694321574,
+      "bootstrap_seed": 2029,
+      "bootstrap_replicates": 2000,
+      "n_queries": 7956,
+      "conclusion": "demonstrated improvement"
+    },
+    {
+      "metric": "exact_mrr_at_10",
+      "baseline_model": "combined_lexical",
+      "challenger_model": "lightgbm_ranker",
+      "observed_difference": 0.03595983265100912,
+      "ci_lower_95": 0.02969486690687671,
+      "ci_upper_95": 0.04250439794863814,
+      "bootstrap_seed": 2029,
+      "bootstrap_replicates": 2000,
+      "n_queries": 7956,
+      "conclusion": "demonstrated improvement"
+    }
+  ],
+  "ndcg_win_tie_loss": {
+    "improved": 4212,
+    "tied": 641,
+    "worsened": 3103,
+    "improved_pct": 52.94117647058823,
+    "tied_pct": 8.056812468577174,
+    "worsened_pct": 39.00201106083459,
+    "n_queries": 7956,
+    "tie_tolerance": 1e-12
+  },
+  "latency_metadata": {
+    "mean_candidate_count": 20.322775263951733,
+    "warmup_queries_per_method": 10,
+    "inference_threads": 1,
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "machine": "arm64",
+    "processor": "arm",
+    "python_version": "3.9.6",
+    "lightgbm_version": "4.5.0",
+    "scikit_learn_version": "1.5.2",
+    "hardware_dependent": true
+  },
+  "run": {
+    "pipeline_wall_time_seconds": 152.124633542,
+    "peak_rss_mib": 2133.796875,
+    "saved_artifact_reproduction": "passed"
   }
 }

@@ -79,7 +79,9 @@ def sample_query_splits(data, sampling):
     seed = int(sampling["random_seed"])
     train_count = int(sampling["train_queries"])
     validation_count = int(sampling["validation_queries"])
-    test_count = int(sampling["test_queries"])
+    legacy_test_count = int(
+        sampling.get("legacy_test_queries", sampling.get("test_queries", 0))
+    )
 
     official_train = np.sort(data.loc[data["split"] == "train", "query_id"].unique())
     official_test = np.sort(data.loc[data["split"] == "test", "query_id"].unique())
@@ -88,24 +90,44 @@ def sample_query_splits(data, sampling):
         raise ValueError("Official train/test query IDs are not disjoint")
     if train_count + validation_count > len(official_train):
         raise ValueError("Requested train + validation queries exceed the official training split")
-    if test_count > len(official_test):
-        raise ValueError("Requested test queries exceed the official test split")
+    if legacy_test_count <= 0 or legacy_test_count >= len(official_test):
+        raise ValueError("Legacy test queries must leave a non-empty fresh final split")
 
     rng = np.random.default_rng(seed)
     shuffled_train = rng.permutation(official_train)
     validation_ids = set(shuffled_train[:validation_count].tolist())
     train_ids = set(shuffled_train[validation_count : validation_count + train_count].tolist())
-    test_ids = set(rng.permutation(official_test)[:test_count].tolist())
+    legacy_test_ids = set(rng.permutation(official_test)[:legacy_test_count].tolist())
+    final_test_ids = set(official_test.tolist()) - legacy_test_ids
 
-    if train_ids & validation_ids or train_ids & test_ids or validation_ids & test_ids:
-        raise AssertionError("Sampled query splits overlap")
+    split_id_sets = {
+        "train": train_ids,
+        "validation": validation_ids,
+        "legacy_test": legacy_test_ids,
+        "final_test": final_test_ids,
+    }
+    names = list(split_id_sets)
+    for index, left_name in enumerate(names):
+        for right_name in names[index + 1 :]:
+            if split_id_sets[left_name] & split_id_sets[right_name]:
+                raise AssertionError(f"{left_name} and {right_name} query IDs overlap")
+    if len(legacy_test_ids) != legacy_test_count:
+        raise AssertionError("Legacy test reconstruction lost query IDs")
+    if len(final_test_ids) != len(official_test) - legacy_test_count:
+        raise AssertionError("Fresh final test query count does not match the derived remainder")
 
     split_data = {
         "train": data[data["query_id"].isin(train_ids)].copy(),
         "validation": data[data["query_id"].isin(validation_ids)].copy(),
-        "test": data[data["query_id"].isin(test_ids)].copy(),
+        "legacy_test": data[data["query_id"].isin(legacy_test_ids)].copy(),
+        "final_test": data[data["query_id"].isin(final_test_ids)].copy(),
     }
-    expected = {"train": train_count, "validation": validation_count, "test": test_count}
+    expected = {
+        "train": train_count,
+        "validation": validation_count,
+        "legacy_test": legacy_test_count,
+        "final_test": len(official_test) - legacy_test_count,
+    }
     for name, frame in split_data.items():
         if frame["query_id"].nunique() != expected[name]:
             raise AssertionError(f"{name} query sampling lost query IDs")
@@ -118,4 +140,3 @@ def group_sizes(frame):
     if int(sizes.sum()) != len(frame):
         raise AssertionError("LightGBM group sizes do not sum to the number of rows")
     return sizes
-
