@@ -149,16 +149,27 @@ def _select_ranker(splits, features, config, report_dir):
     return winner, winner_metadata, ablation
 
 
-def _verify_reloaded_predictions(final_frame, saved_predictions, bundle_path, ranker_path):
+def _verify_reloaded_predictions(
+    final_frame, predictions_path, bundle_path, ranker_path
+):
+    import pandas as pd
+
+    saved_predictions = pd.read_parquet(predictions_path)
     reloaded_bundle = joblib.load(bundle_path)
     reloaded_ranker = joblib.load(ranker_path)
     reloaded_features = transform_features(final_frame, reloaded_bundle, FEATURE_NAMES)
     reproduced = _add_scores(
         final_frame, reloaded_features, reloaded_bundle, reloaded_ranker
     )
-    if not np.array_equal(
-        reproduced["product_id"].to_numpy(), saved_predictions["product_id"].to_numpy()
-    ):
+    for identity_column in ("query_id", "product_id"):
+        if not np.array_equal(
+            reproduced[identity_column].to_numpy(),
+            saved_predictions[identity_column].to_numpy(),
+        ):
+            raise AssertionError(
+                f"Reloaded prediction parquet changed {identity_column} row alignment"
+            )
+    if len(reproduced) != len(saved_predictions):
         raise AssertionError("Reloaded artifacts changed candidate row alignment")
     for score_column in ("word_tfidf_score", "lexical_score", "ranker_score"):
         if not np.allclose(
@@ -174,6 +185,7 @@ def _verify_reloaded_predictions(final_frame, saved_predictions, bundle_path, ra
             saved_predictions[rank_column].to_numpy(),
         ):
             raise AssertionError(f"Reloaded artifacts changed {rank_column}")
+    _assert_rank_alignment(saved_predictions)
     _assert_rank_alignment(reproduced)
 
 
@@ -303,7 +315,9 @@ def run_pipeline(config_path):
         stale_prediction_path.unlink()
 
     comparison.to_csv(report_dir / "model_comparison.csv", index=False)
-    per_query.to_csv(report_dir / "per_query_metrics.csv", index=False)
+    per_query.drop(columns="query").to_csv(
+        report_dir / "per_query_metrics.csv", index=False
+    )
     bootstrap.to_csv(report_dir / "bootstrap_comparison.csv", index=False)
     slices.to_csv(report_dir / "query_slice_metrics.csv", index=False)
     examples.to_csv(report_dir / "error_examples.csv", index=False)
@@ -314,9 +328,9 @@ def run_pipeline(config_path):
         report_dir / "feature_importance.png",
     )
 
-    print("Reloading saved artifacts and reproducing final rankings...")
+    print("Reloading saved prediction parquet and model artifacts...")
     _verify_reloaded_predictions(
-        splits["final_test"], predictions, feature_path, ranker_path
+        splits["final_test"], predictions_path, feature_path, ranker_path
     )
 
     examples_file, products_file = dataset_files(config["paths"]["dataset_dir"])
@@ -362,7 +376,7 @@ def run_pipeline(config_path):
         "run": {
             "pipeline_wall_time_seconds": runtime_seconds,
             "peak_rss_mib": _peak_rss_mib(),
-            "saved_artifact_reproduction": "passed",
+            "saved_prediction_parquet_reproduction": "passed",
         },
     }
     with (report_dir / "metrics.json").open("w") as handle:

@@ -1,6 +1,9 @@
+import joblib
 import numpy as np
 import pandas as pd
+import pytest
 
+from run_pipeline import _add_scores, _verify_reloaded_predictions
 from src.data import group_sizes, sample_query_splits
 from src.features import FEATURE_NAMES, TFIDF_FEATURE_NAMES, fit_feature_bundle, transform_features
 from src.models import train_ranker
@@ -122,6 +125,56 @@ class TiedRanker:
     def predict(self, features, num_iteration=None, num_threads=None):
         self.columns = list(features.columns)
         return np.zeros(len(features))
+
+
+def test_verification_reloads_saved_prediction_parquet(tmp_path):
+    candidates = pd.DataFrame(
+        {
+            "query_id": [1, 1],
+            "query": ["fitbit charge 3", "fitbit charge 3"],
+            "product_id": ["tracker", "band"],
+            "product_title": ["Fitbit Charge 3 tracker", "Fitbit Charge 3 band"],
+            "product_brand": ["Fitbit", "Accessory Co"],
+            "product_color": ["black", "black"],
+        }
+    )
+    bundle = fit_feature_bundle(
+        candidates,
+        {
+            "word_ngram_range": [1, 1],
+            "word_max_features": 20,
+            "char_ngram_range": [3, 3],
+            "char_max_features": 40,
+            "min_df": 1,
+        },
+    )
+    bundle["lexical_word_weight"] = 0.5
+    bundle["ranker_feature_names"] = TFIDF_FEATURE_NAMES
+    bundle["inference_threads"] = 1
+    ranker = TiedRanker()
+    features = transform_features(candidates, bundle)
+    predictions = _add_scores(candidates, features, bundle, ranker)
+
+    bundle_path = tmp_path / "feature_bundle.joblib"
+    ranker_path = tmp_path / "ranker.joblib"
+    predictions_path = tmp_path / "final_test_predictions.parquet"
+    joblib.dump(bundle, bundle_path)
+    joblib.dump(ranker, ranker_path)
+    predictions.to_parquet(predictions_path, index=False)
+
+    _verify_reloaded_predictions(
+        candidates, predictions_path, bundle_path, ranker_path
+    )
+
+    corrupted = pd.read_parquet(predictions_path)
+    corrupted.loc[0, "lexical_score"] = np.float32(
+        corrupted.loc[0, "lexical_score"] + 0.1
+    )
+    corrupted.to_parquet(predictions_path, index=False)
+    with pytest.raises(AssertionError, match="lexical_score"):
+        _verify_reloaded_predictions(
+            candidates, predictions_path, bundle_path, ranker_path
+        )
 
 
 def test_tied_scores_use_product_id_after_shuffled_input():

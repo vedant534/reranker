@@ -117,7 +117,7 @@
       "bootstrap_seed": 2029,
       "bootstrap_replicates": 2000,
       "n_queries": 7956,
-      "conclusion": "demonstrated improvement"
+      "conclusion": "positive interval conditional on fixed model and sample"
     },
     {
       "metric": "exact_mrr_at_10",
@@ -129,7 +129,7 @@
       "bootstrap_seed": 2029,
       "bootstrap_replicates": 2000,
       "n_queries": 7956,
-      "conclusion": "demonstrated improvement"
+      "conclusion": "positive interval conditional on fixed model and sample"
     }
   ],
   "ndcg_win_tie_loss": {
@@ -157,6 +157,6 @@
   "run": {
     "pipeline_wall_time_seconds": 152.124633542,
     "peak_rss_mib": 2133.796875,
-    "saved_artifact_reproduction": "passed"
+    "saved_prediction_parquet_reproduction": "passed"
   }
 }

@@ -68,27 +68,45 @@ candidates = test_data[test_data["query_id"] == query_id].copy()
 query = candidates["query"].iloc[0]
 reranked = predict_reranked(query, candidates, feature_bundle, ranker)
 
-columns = [
-    "product_title",
-    "product_brand",
-    "lexical_score",
-    "predicted_score",
-    "lexical_rank",
-    "model_rank",
-    "esci_label",
-]
+column_config = {
+    "Rank": st.column_config.NumberColumn(width="small"),
+    "Label": st.column_config.TextColumn(width="small"),
+    "Title": st.column_config.TextColumn(width="large"),
+}
+
+
+def display_ranking(frame, rank_column):
+    return (
+        frame.sort_values(rank_column)
+        .head(10)[
+            [rank_column, "esci_label", "product_title"]
+        ]
+        .rename(
+            columns={
+                rank_column: "Rank",
+                "esci_label": "Label",
+                "product_title": "Title",
+            }
+        )
+    )
+
+
 left, right = st.columns(2)
 with left:
     st.subheader("Combined lexical baseline")
     st.dataframe(
-        reranked.sort_values("lexical_rank")[columns],
+        display_ranking(reranked, "lexical_rank"),
+        column_config=column_config,
         hide_index=True,
         use_container_width=True,
+        height=420,
     )
 with right:
     st.subheader("LightGBM reranker")
     st.dataframe(
-        reranked.sort_values("model_rank")[columns],
+        display_ranking(reranked, "model_rank"),
+        column_config=column_config,
         hide_index=True,
         use_container_width=True,
+        height=420,
     )

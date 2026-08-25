@@ -91,11 +91,11 @@ def paired_bootstrap_comparison(per_query, seed, replicates):
             samples[index] = float(differences[sampled_indices].mean())
         lower, upper = np.percentile(samples, [2.5, 97.5])
         if lower > 0:
-            conclusion = "demonstrated improvement"
+            conclusion = "positive interval conditional on fixed model and sample"
         elif upper < 0:
-            conclusion = "demonstrated regression"
+            conclusion = "negative interval conditional on fixed model and sample"
         else:
-            conclusion = "inconclusive"
+            conclusion = "interval contains zero"
         rows.append(
             {
                 "metric": metric,

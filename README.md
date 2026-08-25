@@ -2,7 +2,7 @@
 
 Product search must distinguish the requested product from substitutes, accessories, and unrelated items that happen to share keywords. This project reranks candidate products from Amazon's ESCI Shopping Queries dataset using graded relevance and query-grouped learning.
 
-On a previously uninspected, fresh-to-project holdout of 7,956 US queries, the selected LambdaRank model reached **0.7158 nDCG@10**, compared with **0.6914** for the validation-selected lexical baseline. The absolute change was **+0.0244** and the relative change was **+3.53%**. A paired query bootstrap gave a 95% confidence interval of **[+0.0213, +0.0275]**, demonstrating an nDCG improvement on this offline candidate-ranking task.
+On a holdout of 7,956 US queries, the selected LambdaRank model reached **0.7158 nDCG@10**, compared with **0.6914** for the validation-selected lexical baseline. The holdout was **not included in the prior reported evaluation and unused for model selection; first scored in the reported final run**. The absolute change was **+0.0244** and the relative change was **+3.53%**. A paired query bootstrap gave a 95% confidence interval of **[+0.0213, +0.0275]** for this offline candidate-ranking task. This interval is conditional on the fixed trained model and final query sample; it is not evidence of online business impact.
 
 This is reranking over candidates already supplied by ESCI, not a retrieval engine. It cannot return a product absent from the candidate set.
 
@@ -31,7 +31,7 @@ The published official test labels had previously been inspected for the legacy 
 | Excluded legacy test | 1,000 | 20,013 | Reconstructed only; never used for the new results |
 | Fresh final test | 7,956 | 161,688 | One evaluation after validation selection was frozen |
 
-The official US reduced split contains 20,888 train and 8,956 test queries. Sampling seed, model seed, and bootstrap seed are recorded separately as `42`, `42`, and `2029`. No losing ablation candidate is evaluated on the fresh final set.
+The official US reduced split contains 20,888 train and 8,956 test queries. **Only 5,000 of the 20,888 available training queries were used.** Sampling seed, model seed, and bootstrap seed are recorded separately as `42`, `42`, and `2029`. No losing ablation candidate is evaluated on the final set.
 
 ### Validation-only ablation
 
@@ -55,10 +55,11 @@ The combined lexical baseline independently selected word weight `0.25` using va
 
 Against combined lexical:
 
-- nDCG@10 changed by **+0.0244 absolute** and **+3.53% relative**. Its paired 95% CI was **[+0.0213, +0.0275]**, demonstrating improvement for nDCG.
-- Exact MRR@10 changed by **+0.0360 absolute** and **+4.86% relative**. Its paired 95% CI was **[+0.0297, +0.0425]**, independently demonstrating improvement for MRR.
+- nDCG@10 changed by **+0.0244 absolute** and **+3.53% relative**. Its paired 95% CI was **[+0.0213, +0.0275]** for the fixed trained model and final query sample.
+- Exact MRR@10 changed by **+0.0360 absolute** and **+4.86% relative**. Its paired 95% CI was **[+0.0297, +0.0425]** under the same conditional interpretation.
 - E/S Recall@5 changed by only **+0.0012 absolute** (+0.37% relative).
 - Complement Exposure@5 fell by 0.0015 and Irrelevant Exposure@5 fell by 0.0013.
+- p95 scoring latency increased by approximately **+1.20 ms / +19.3%** versus combined lexical (6.21 ms to 7.41 ms).
 
 At query level, nDCG improved for **4,212 queries (52.94%)**, tied for **641 (8.06%)**, and worsened for **3,103 (39.00%)**. The confidence intervals quantify the paired mean changes; the win/tie/loss counts show that aggregate improvement does not mean every query improved.
 
@@ -77,7 +78,7 @@ The slice definitions are fixed before final evaluation. Low overlap means mean 
 | Five or more tokens | 2,384 | 0.6735 | 0.6986 | +0.0252 |
 | Low lexical overlap | 1,856 | 0.6637 | 0.6753 | +0.0116 |
 
-Numeric/model-token queries showed the largest gain; low-overlap queries remained the weakest improvement slice. Complete slice metrics are in [`reports/query_slice_metrics.csv`](reports/query_slice_metrics.csv).
+Numeric/model-token queries showed the largest gain. The honest failure slice is low lexical overlap: nDCG@10 improved from **0.6637 to 0.6753**, but Irrelevant Exposure@5 slightly worsened from **0.2031 to 0.2044**. Complete slice metrics are in [`reports/query_slice_metrics.csv`](reports/query_slice_metrics.csv).
 
 ## Illustrative error analysis
 
@@ -183,7 +184,7 @@ test -f data/shopping_queries_dataset_examples.parquet || curl -L --fail -o data
 test -f data/shopping_queries_dataset_products.parquet || curl -L --fail -o data/shopping_queries_dataset_products.parquet https://media.githubusercontent.com/media/amazon-science/esci-data/main/shopping_queries_dataset/shopping_queries_dataset_products.parquet
 ```
 
-The two parquet files total approximately 1.16 GB (1.08 GiB). With data already present, the verified complete pipeline—including ablation, final scoring, 23,868 latency measurements, reports, and artifact-reload verification—took **152 seconds** and reached approximately **2.13 GiB peak RSS** on the machine described above. Dependency installation and download time are additional.
+The two parquet files total approximately 1.16 GB (1.08 GiB). With data already present, the verified complete pipeline—including ablation, final scoring, 23,868 latency measurements, reports, and artifact-reload verification—took **152 seconds** and reached **2,133.8 MiB (approximately 2.08 GiB) peak RSS** on the machine described above. Dependency installation and download time are additional.
 
 ```bash
 python run_pipeline.py --config config.yaml
@@ -191,7 +192,7 @@ python -m pytest -q
 streamlit run app.py --server.headless true -- --config config.yaml
 ```
 
-The app checks for required artifacts and gives the pipeline command if they are missing. The selected bundle and ranker were reloaded after the real run and reproduced all saved scores, deterministic ranks, and ordering.
+The app checks for required artifacts and gives the pipeline command if they are missing. During verification, the pipeline reads `final_test_predictions.parquet` back from disk, reloads the selected bundle and ranker, and checks that recomputation reproduces the saved scores, deterministic ranks, and ordering.
 
 ![Working Streamlit demo](reports/streamlit_demo.png)
 
@@ -199,14 +200,14 @@ The app checks for required artifacts and gives the pipeline command if they are
 
 - Candidate products are supplied by the dataset, so retrieval recall is not measured.
 - ESCI labels are relevance judgments, not clicks, conversions, or revenue.
-- The fresh holdout is previously uninspected by this project, not a private or hidden benchmark.
+- The holdout was not included in the prior reported evaluation and was unused for model selection; it was first scored in the reported final run. It is not a private or hidden benchmark.
 - The model uses shallow lexical and metadata-match signals; it has no semantic embeddings and remains vulnerable to typos and ambiguous intent.
 - It does not use live price, availability, inventory, images, descriptions, or personalization.
 - Only the US English reduced subset is evaluated.
-- Bootstrap intervals describe uncertainty across these labeled query groups; offline improvements do not guarantee online customer or business impact.
+- Bootstrap intervals are conditional on the fixed trained model and final query sample. They do not include training or model-selection uncertainty and are not proof of online customer or business impact.
 
 ## Dataset citation and licences
 
-The dataset is described in *Shopping Queries Dataset: A Large-Scale ESCI Benchmark for Improving Product Search* by Reddy et al. The [upstream ESCI repository](https://github.com/amazon-science/esci-data) is published under Apache-2.0; the data are downloaded separately and are not redistributed here.
+The dataset is described in *Shopping Queries Dataset: A Large-Scale ESCI Benchmark for Improving Product Search* by Reddy et al. The [upstream ESCI repository](https://github.com/amazon-science/esci-data) is published under Apache-2.0. Raw ESCI parquet files are not redistributed. Derived evaluation tables and small illustrative excerpts are committed under the upstream dataset terms; see [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for attribution.
 
 This project's source code is licensed under the [MIT License](LICENSE).
