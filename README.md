@@ -49,9 +49,9 @@ The combined lexical baseline independently selected word weight `0.25` using va
 
 | Method | nDCG@10 | Exact MRR@10 | E/S Recall@5 | Complement Exposure@5 | Irrelevant Exposure@5 | p50 ms | p95 ms |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Word TF-IDF | 0.6665 | 0.7117 | 0.3065 | 0.0477 | 0.1239 | 1.61 | 2.16 |
-| Combined lexical | 0.6914 | 0.7403 | 0.3133 | 0.0486 | 0.1135 | 3.40 | 6.21 |
-| **Selected LambdaRank** | **0.7158** | **0.7763** | **0.3144** | **0.0471** | **0.1123** | **4.15** | **7.41** |
+| Word TF-IDF | 0.6665 | 0.7117 | 0.3065 | 0.0477 | 0.1239 | 1.59 | 2.13 |
+| Combined lexical | 0.6914 | 0.7403 | 0.3133 | 0.0486 | 0.1135 | 3.41 | 6.19 |
+| **Selected LambdaRank** | **0.7158** | **0.7763** | **0.3144** | **0.0471** | **0.1123** | **4.27** | **7.58** |
 
 Against combined lexical:
 
@@ -59,7 +59,7 @@ Against combined lexical:
 - Exact MRR@10 changed by **+0.0360 absolute** and **+4.86% relative**. Its paired 95% CI was **[+0.0297, +0.0425]** under the same conditional interpretation.
 - E/S Recall@5 changed by only **+0.0012 absolute** (+0.37% relative).
 - Complement Exposure@5 fell by 0.0015 and Irrelevant Exposure@5 fell by 0.0013.
-- p95 scoring latency increased by approximately **+1.20 ms / +19.3%** versus combined lexical (6.21 ms to 7.41 ms).
+- p95 scoring latency increased by approximately **+1.39 ms / +22.4%** versus combined lexical (6.19 ms to 7.58 ms).
 
 At query level, nDCG improved for **4,212 queries (52.94%)**, tied for **641 (8.06%)**, and worsened for **3,103 (39.00%)**. The confidence intervals quantify the paired mean changes; the win/tie/loss counts show that aggregate improvement does not mean every query improved.
 
@@ -184,7 +184,7 @@ test -f data/shopping_queries_dataset_examples.parquet || curl -L --fail -o data
 test -f data/shopping_queries_dataset_products.parquet || curl -L --fail -o data/shopping_queries_dataset_products.parquet https://media.githubusercontent.com/media/amazon-science/esci-data/main/shopping_queries_dataset/shopping_queries_dataset_products.parquet
 ```
 
-The two parquet files total approximately 1.16 GB (1.08 GiB). With data already present, the verified complete pipeline—including ablation, final scoring, 23,868 latency measurements, reports, and artifact-reload verification—took **152 seconds** and reached **2,133.8 MiB (approximately 2.08 GiB) peak RSS** on the machine described above. Dependency installation and download time are additional.
+The two parquet files total approximately 1.16 GB (1.08 GiB). With data already present, the verified complete pipeline—including ablation, final scoring, 23,868 latency measurements, reports, and artifact-reload verification—took **152 seconds** and reached **2,137.2 MiB (approximately 2.09 GiB) peak RSS** on the machine described above. Dependency installation and download time are additional.
 
 ```bash
 python run_pipeline.py --config config.yaml

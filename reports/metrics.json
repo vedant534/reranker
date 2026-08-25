@@ -77,8 +77,8 @@
       "irrelevant_exposure_at_5": 0.1238562091503268,
       "n_queries": 7956,
       "es_recall_queries": 7956,
-      "p50_ms": 1.610937500000631,
-      "p95_ms": 2.1589789999989506,
+      "p50_ms": 1.5898545000005981,
+      "p95_ms": 2.1258962499981493,
       "n_timed_queries": 7956
     },
     "combined_lexical": {
@@ -89,8 +89,8 @@
       "irrelevant_exposure_at_5": 0.11354952237305178,
       "n_queries": 7956,
       "es_recall_queries": 7956,
-      "p50_ms": 3.395416499998305,
-      "p95_ms": 6.213167250008311,
+      "p50_ms": 3.407333500003773,
+      "p95_ms": 6.19333374999087,
       "n_timed_queries": 7956
     },
     "lightgbm_ranker": {
@@ -101,8 +101,8 @@
       "irrelevant_exposure_at_5": 0.11229260935143288,
       "n_queries": 7956,
       "es_recall_queries": 7956,
-      "p50_ms": 4.149958500001105,
-      "p95_ms": 7.4119997500048385,
+      "p50_ms": 4.267520999995611,
+      "p95_ms": 7.581572999995956,
       "n_timed_queries": 7956
     }
   },
@@ -155,8 +155,8 @@
     "hardware_dependent": true
   },
   "run": {
-    "pipeline_wall_time_seconds": 152.124633542,
-    "peak_rss_mib": 2133.796875,
+    "pipeline_wall_time_seconds": 152.36461220799998,
+    "peak_rss_mib": 2137.21875,
     "saved_prediction_parquet_reproduction": "passed"
   }
 }
